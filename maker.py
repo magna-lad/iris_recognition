@@ -101,7 +101,7 @@ def save_augmented(image, mask, img_dir, msk_dir, prefix="aug"):
 
 
 
-def maker(image, mask):
+def aker(image, mask):
     '''
     image: [list_of_left_image_paths, list_of_right_image_paths]
     mask : [list_of_left_mask_paths, list_of_right_mask_paths]
@@ -143,6 +143,254 @@ def maker(image, mask):
     if len(image[right]) < TARGET_COUNT:
         fill_to_10(image[right], mask[right], image[right], mask[right], "right", r_dir, r_mask_dir, prefix="R")
 
+
+
+def augment_empty_case(image,mask,side,flip):
+    SIZE=10
+    while len(image[side])<SIZE:
+            idx= random.randint(0,len(image[not side])-1)          
+            random_image=image[not side][idx]
+            random_mask=mask[not side][idx]
+
+            # horizontally flip them
+            if flip==True:
+                pil_image = Image.open(random_image).convert("RGB")
+                flipped_image=pil_image.transpose(Image.FLIP_LEFT_RIGHT)
+
+
+                pil_mask = Image.open(random_mask).convert("L")
+                flipped_mask=pil_mask.transpose(Image.FLIP_LEFT_RIGHT)
+
+                angle=random.randint(-20,20)
+
+                rotated_image=flipped_image.rotate(angle)
+                rotated_mask=flipped_mask.rotate(angle)
+
+                # generate paths for these flipped images and save them in the root folder, left here
+                parent_dir_image=os.path.dirname(os.path.dirname(image[not side][0]))
+                target_dir_image=os.path.join(parent_dir_image,'L')
+
+                parent_dir_mask=os.path.dirname(os.path.dirname(mask[not side][0]))
+                target_dir_mask=os.path.join(parent_dir_mask,'L')
+
+                prefix = "aug"
+                unique_id = str(uuid.uuid4())[:8]  # Short random ID
+                filename = f"{prefix}_{unique_id}"
+
+                os.makedirs(target_dir_image, exist_ok=True)
+                os.makedirs(target_dir_mask, exist_ok=True)
+
+
+                img_path=os.path.join(target_dir_image,f"{filename}.jpg")
+                mask_path=os.path.join(target_dir_mask,f"{filename}.png")
+
+                image[side].append(img_path)
+                mask[side].append(mask_path)
+
+                rotated_image.save(img_path)
+                rotated_mask.save(mask_path)
+
+
+
+
+def maker(image,mask):
+    '''
+    args: image- lists of [L,R] of various folders
+          masks- lists of [L,R] of various folders
+    goal: to make the numeber of images in both L and R of all folders equal
+    '''
+    left,right=0,1
+    # if left is empty
+    if len(image[left])==0:
+        # choose a random (image,masks) from the right folder and make flip them and make augmentation
+        augment_empty_case(image,mask,left,True)
+    # if right is empty
+    if len(image[right])==0:
+        # choose a random (image,masks) from the right folder and make flip them and make augmentation
+        augment_empty_case(image,mask,right,True)
+
+    if len(image[left])<10:
+        # make a stack of randint of indices of the left and right folders, and fill the less filled one first
+        # then fill the more filled one till both have 10 images each
+        indices=[] # used as stack
+        for i in range(10-len(image[left])):
+            left_indices = random.randint(0,len(image[left])-1)
+            right_indices = random.randint(0,len(image[right])-1)
+            indices.append(f"0{left_indices}")
+            indices.append(f"1{right_indices}")
+
+        # now make an algo where an index is taken from the stack indices
+        # and augmentation of the image is added to the folder
+
+        while len(image[left])<10:
+            idx=indices.pop()
+            side=int(idx[0])
+            random_image=image[side][int(idx[1])]
+            random_mask=mask[side][int(idx[1])]
+            # see if we need to flip the image or not and rotate them and add them to the folders
+            if side==0: # no flip
+                pil_image = Image.open(random_image).convert("RGB")
+
+
+                pil_mask = Image.open(random_mask).convert("L")
+
+                angle=random.randint(-20,20)
+
+                rotated_image=pil_image.rotate(angle)
+                rotated_mask=pil_mask.rotate(angle)
+
+                # generate paths for these flipped images and save them in the root folder, left here
+                parent_dir_image=os.path.dirname(os.path.dirname(image[not side][0]))
+                target_dir_image=os.path.join(parent_dir_image,'L')
+
+                parent_dir_mask=os.path.dirname(os.path.dirname(mask[not side][0]))
+                target_dir_mask=os.path.join(parent_dir_mask,'L')
+
+                prefix = "aug"
+                unique_id = str(uuid.uuid4())[:8]  # Short random ID
+                filename = f"{prefix}_{unique_id}"
+
+                os.makedirs(target_dir_image, exist_ok=True)
+                os.makedirs(target_dir_mask, exist_ok=True)
+
+
+                img_path=os.path.join(target_dir_image,f"{filename}.jpg")
+                mask_path=os.path.join(target_dir_mask,f"{filename}.png")
+
+                image[side].append(img_path)
+                mask[side].append(mask_path)
+
+                rotated_image.save(img_path)
+                rotated_mask.save(mask_path)
+            if side==1:
+                # horizontally flip them
+                pil_image = Image.open(random_image).convert("RGB")
+                flipped_image=pil_image.transpose(Image.FLIP_LEFT_RIGHT)
+
+
+                pil_mask = Image.open(random_mask).convert("L")
+                flipped_mask=pil_mask.transpose(Image.FLIP_LEFT_RIGHT)
+
+                angle=random.randint(-20,20)
+
+                rotated_image=flipped_image.rotate(angle)
+                rotated_mask=flipped_mask.rotate(angle)
+
+                # generate paths for these flipped images and save them in the root folder, left here
+                parent_dir_image=os.path.dirname(os.path.dirname(image[not side][0]))
+                target_dir_image=os.path.join(parent_dir_image,'L')
+
+                parent_dir_mask=os.path.dirname(os.path.dirname(mask[not side][0]))
+                target_dir_mask=os.path.join(parent_dir_mask,'L')
+
+                prefix = "aug"
+                unique_id = str(uuid.uuid4())[:8]  # Short random ID
+                filename = f"{prefix}_{unique_id}"
+
+                os.makedirs(target_dir_image, exist_ok=True)
+                os.makedirs(target_dir_mask, exist_ok=True)
+
+
+                img_path=os.path.join(target_dir_image,f"{filename}.jpg")
+                mask_path=os.path.join(target_dir_mask,f"{filename}.png")
+
+                image[side].append(img_path)
+                mask[side].append(mask_path)
+
+                rotated_image.save(img_path)
+                rotated_mask.save(mask_path)
+
+    if len(image[right])<10:
+        # make a stack of randint of indices of the left and right folders, and fill the less filled one first
+        # then fill the more filled one till both have 10 images each
+        indices=[] # used as stack
+        for i in range(10-len(image[right])):
+            left_indices = random.randint(0,len(image[right])-1)
+            right_indices = random.randint(0,len(image[right])-1)
+            indices.append(f"0{left_indices}")
+            indices.append(f"1{right_indices}")
+
+        # now make an algo where an index is taken from the stack indices
+        # and augmentation of the image is added to the folder
+
+        while len(image[right])<10:
+            idx=indices.pop()
+            side=int(idx[0])
+            random_image=image[side][int(idx[1])]
+            random_mask=mask[side][int(idx[1])]
+            # see if we need to flip the image or not and rotate them and add them to the folders
+            if side==1: # no rotation
+                            # horizontally flip them
+                pil_image = Image.open(random_image).convert("RGB")
+
+
+                pil_mask = Image.open(random_mask).convert("L")
+
+                angle=random.randint(-20,20)
+
+                rotated_image=pil_image.rotate(angle)
+                rotated_mask=pil_mask.rotate(angle)
+
+                # generate paths for these flipped images and save them in the root folder, left here
+                parent_dir_image=os.path.dirname(os.path.dirname(image[not side][0]))
+                target_dir_image=os.path.join(parent_dir_image,'L')
+
+                parent_dir_mask=os.path.dirname(os.path.dirname(mask[not side][0]))
+                target_dir_mask=os.path.join(parent_dir_mask,'L')
+
+                prefix = "aug"
+                unique_id = str(uuid.uuid4())[:8]  # Short random ID
+                filename = f"{prefix}_{unique_id}"
+
+                os.makedirs(target_dir_image, exist_ok=True)
+                os.makedirs(target_dir_mask, exist_ok=True)
+
+
+                img_path=os.path.join(target_dir_image,f"{filename}.jpg")
+                mask_path=os.path.join(target_dir_mask,f"{filename}.png")
+
+                image[side].append(img_path)
+                mask[side].append(mask_path)
+
+                rotated_image.save(img_path)
+                rotated_mask.save(mask_path)
+            if side==1:
+                # horizontally flip them
+                pil_image = Image.open(random_image).convert("RGB")
+                flipped_image=pil_image.transpose(Image.FLIP_LEFT_RIGHT)
+    
+                
+                pil_mask = Image.open(random_mask).convert("L")
+                flipped_mask=pil_mask.transpose(Image.FLIP_LEFT_RIGHT)
+    
+                angle=random.randint(-20,20)
+    
+                rotated_image=flipped_image.rotate(angle)
+                rotated_mask=flipped_mask.rotate(angle)
+    
+                # generate paths for these flipped images and save them in the root folder, left here
+                parent_dir_image=os.path.dirname(os.path.dirname(image[not side][0]))
+                target_dir_image=os.path.join(parent_dir_image,'L')
+    
+                parent_dir_mask=os.path.dirname(os.path.dirname(mask[not side][0]))
+                target_dir_mask=os.path.join(parent_dir_mask,'L')
+    
+                prefix = "aug"
+                unique_id = str(uuid.uuid4())[:8]  # Short random ID
+                filename = f"{prefix}_{unique_id}"
+    
+                os.makedirs(target_dir_image, exist_ok=True)
+                os.makedirs(target_dir_mask, exist_ok=True)
+    
+    
+                img_path=os.path.join(target_dir_image,f"{filename}.jpg")
+                mask_path=os.path.join(target_dir_mask,f"{filename}.png")
+    
+                image[side].append(img_path)
+                mask[side].append(mask_path)
+    
+                rotated_image.save(img_path)
+                rotated_mask.save(mask_path)
 
 
 
