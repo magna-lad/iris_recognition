@@ -277,11 +277,9 @@ def rename_folders_sequentially(image_root, mask_root):
             os.rename(old_mask_path, new_mask_path)
 
 
-
-image,mask=find_images(r"C:\Users\kound\OneDrive\Desktop\v4_extra\v4",r"C:\Users\kound\OneDrive\Desktop\v4_extra\v4_masks")
+image_root=""
+mask_root=""
+image,mask=find_images(image_root,mask_root)
 finder(image,mask)
-delete_overfilled_folders(r"C:\Users\kound\OneDrive\Desktop\v4_extra\v4",r"C:\Users\kound\OneDrive\Desktop\v4_extra\v4_masks")
-
-
-
-rename_folders_sequentially(r"C:\Users\kound\OneDrive\Desktop\v4_extra\v4",r"C:\Users\kound\OneDrive\Desktop\v4_extra\v4_masks")
+delete_overfilled_folders(image_root,mask_root)
+rename_folders_sequentially(image_root,mask_root)
