@@ -62,7 +62,7 @@ def finder(image,mask):
     finds the list with unequal pairs
     and augments them to have equal number of images==10
     '''
-    for idx,i in enumerate(image[:TARGET_COUNT]):
+    for idx,i in enumerate(image):
         print(len(i[0]),len(i[1]))
         if len(i[0])!=TARGET_COUNT or len(i[1])!=TARGET_COUNT:
             #print(image[idx])
@@ -72,6 +72,8 @@ def finder(image,mask):
 
 
 def save(image,mask,side,rotated_image,rotated_mask,side_alph):
+        if len(image[side]) >= TARGET_COUNT:
+            return  # don't save more than needed
         parent_dir_image=os.path.dirname(os.path.dirname(image[not side][0]))
         target_dir_image=os.path.join(parent_dir_image,side_alph)
         parent_dir_mask=os.path.dirname(os.path.dirname(mask[not side][0]))
@@ -87,8 +89,10 @@ def save(image,mask,side,rotated_image,rotated_mask,side_alph):
         mask[side].append(mask_path)
         rotated_image.save(img_path)
         rotated_mask.save(mask_path)
+        
 
-def augment_image(image_path, mask_path, flip=False, angle=None):
+
+def augment_image(image_path, mask_path, flip, angle=None):
     pil_image = Image.open(image_path).convert("RGB")
     pil_mask = Image.open(mask_path).convert("L")
     if flip:
@@ -108,24 +112,12 @@ def augment_partial_empty_case(image,mask,random_image,random_mask,side,flip):
         side- decides if flipping is required
     '''
     if side==0:
-            side_alph="L"
+        side_alph="L"
     else:
         side_alph="R"
-    if flip==0:      
-        rotated_image,rotated_mask=augment_image(random_image, random_mask, flip)
-        # generate paths for these flipped images and save them in the root folder, left here
-        
-        save(image,mask,side,rotated_image,rotated_mask,side_alph)
-    if flip==1:
-        
-        rotated_image,rotated_mask=augment_image(random_image, random_mask, flip)
-        
 
-        # after rotated image code can be made more modular
-
-        # generate paths for these flipped images and save them in the root folder, left here
-        
-        save(image,mask,side,rotated_image,rotated_mask,side_alph)
+    rotated_image, rotated_mask = augment_image(random_image, random_mask, flip)
+    save(image, mask, side, rotated_image, rotated_mask, side_alph)
 
 def augment_empty_case(image,mask,side):
     '''
@@ -137,7 +129,10 @@ def augment_empty_case(image,mask,side):
         side_alph="L"
     else:
         side_alph="R"
-    while len(image[side])<SIZE:
+    
+    images_needed = TARGET_COUNT - len(image[side])
+    for _ in range(images_needed):
+    # augmentation logic
         idx= random.randint(0,len(image[not side])-1)          
         random_image=image[not side][idx]
         random_mask=mask[not side][idx]
@@ -169,6 +164,7 @@ def maker(image,mask):
         # choose a random (image,masks) from the right folder and make flip them and make augmentation
         augment_empty_case(image,mask,right)
 
+    
     if len(image[left])<TARGET_COUNT:
         # make a stack of randint of indices of the left and right folders, and fill the less filled one first
         # then fill the more filled one till both have 10 images each
@@ -182,8 +178,10 @@ def maker(image,mask):
         # now make an algo where an index is taken from the stack indices
         # and augmentation of the image is added to the folder
 
-        while len(image[left])<TARGET_COUNT:
-            idx=indices.pop()
+
+        images_needed = TARGET_COUNT - len(image[left])
+        for _ in range(images_needed):
+            idx = indices.pop()
             side=int(idx[0])
             random_image=image[side][int(idx[1])]
             random_mask=mask[side][int(idx[1])]
@@ -202,7 +200,7 @@ def maker(image,mask):
         # then fill the more filled one till both have 10 images each
         indices=[] # used as stack
         for i in range(TARGET_COUNT-len(image[right])):
-            left_indices = random.randint(0,len(image[right])-1)
+            left_indices = random.randint(0,len(image[left])-1)
             right_indices = random.randint(0,len(image[right])-1)
             indices.append((0,left_indices))
             indices.append((1,right_indices))
@@ -210,7 +208,8 @@ def maker(image,mask):
         # now make an algo where an index is taken from the stack indices
         # and augmentation of the image is added to the folder
 
-        while len(image[right])<TARGET_COUNT:
+        images_needed = TARGET_COUNT - len(image[right])
+        for _ in range(images_needed):
             idx=indices.pop()
             side=int(idx[0])
             random_image=image[side][int(idx[1])]
@@ -219,15 +218,70 @@ def maker(image,mask):
             if side==1: # no flip
                 flip=0
                 augment_partial_empty_case(image,mask,random_image,random_mask,side,flip)
-            if side==1:
+            if side==0:
                 # horizontally flip them
                 flip=1
                 augment_partial_empty_case(image,mask,random_image,random_mask,side,flip)
+    # Ensure both sides have exactly TARGET_COUNT images
+    for side in [0, 1]:
+        if len(image[side]) < TARGET_COUNT:
+            images_needed = TARGET_COUNT - len(image[side])
+            for _ in range(images_needed):
+                idx = random.randint(0, len(image[not side]) - 1)
+                flip = (side != (not side))  # flip only if copying from opposite side
+                img, msk = augment_image(image[not side][idx], mask[not side][idx], flip=flip)
+                side_alph = "L" if side == 0 else "R"
+                save(image, mask, side, img, msk, side_alph)
+        elif len(image[side]) > TARGET_COUNT:
+            image[side] = image[side][:TARGET_COUNT]
+            mask[side] = mask[side][:TARGET_COUNT]
+
+def delete_overfilled_folders(image_root, mask_root):
+    for case_folder in os.listdir(image_root):
+        case_path_img = os.path.join(image_root, case_folder)
+        case_path_mask = os.path.join(mask_root, case_folder)
+        if not os.path.isdir(case_path_img):
+            continue
+
+        l_path = os.path.join(case_path_img, 'L')
+        r_path = os.path.join(case_path_img, 'R')
+
+        l_images = os.listdir(l_path) if os.path.exists(l_path) else []
+        r_images = os.listdir(r_path) if os.path.exists(r_path) else []
+
+        if len(l_images) > TARGET_COUNT or len(r_images) > TARGET_COUNT:
+            print(f"Deleting overfilled folder: {case_folder} (L: {len(l_images)}, R: {len(r_images)})")
+            try:
+                # Delete image and mask parent folders
+                os.system(f'rmdir /s /q "{case_path_img}"')
+                os.system(f'rmdir /s /q "{case_path_mask}"')
+            except Exception as e:
+                print(f"Error deleting {case_folder}: {e}")
+
+
+def rename_folders_sequentially(image_root, mask_root):
+    image_folders = sorted([f for f in os.listdir(image_root) if os.path.isdir(os.path.join(image_root, f))])
+    
+    for idx, folder_name in enumerate(image_folders, 1):
+        new_name = f"{idx:03d}"
+        old_image_path = os.path.join(image_root, folder_name)
+        old_mask_path = os.path.join(mask_root, folder_name)
+
+        new_image_path = os.path.join(image_root, new_name)
+        new_mask_path = os.path.join(mask_root, new_name)
+
+        # Rename only if the new name is different
+        if folder_name != new_name:
+            print(f"Renaming {folder_name} → {new_name}")
+            os.rename(old_image_path, new_image_path)
+            os.rename(old_mask_path, new_mask_path)
 
 
 
 image,mask=find_images(r"C:\Users\kound\OneDrive\Desktop\v4_extra\v4",r"C:\Users\kound\OneDrive\Desktop\v4_extra\v4_masks")
 finder(image,mask)
+delete_overfilled_folders(r"C:\Users\kound\OneDrive\Desktop\v4_extra\v4",r"C:\Users\kound\OneDrive\Desktop\v4_extra\v4_masks")
 
 
 
+rename_folders_sequentially(r"C:\Users\kound\OneDrive\Desktop\v4_extra\v4",r"C:\Users\kound\OneDrive\Desktop\v4_extra\v4_masks")
