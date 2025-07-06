@@ -277,8 +277,8 @@ def rename_folders_sequentially(image_root, mask_root):
             os.rename(old_mask_path, new_mask_path)
 
 
-image_root=""
-mask_root=""
+image_root="" # path to the image folder
+mask_root="" # # path to the mask folder
 image,mask=find_images(image_root,mask_root)
 finder(image,mask)
 delete_overfilled_folders(image_root,mask_root)
